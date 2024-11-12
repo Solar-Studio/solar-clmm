@@ -40,13 +40,14 @@ use instructions::token_instructions::*;
 use instructions::utils::*;
 use solar_clmm::{
     libraries::{fixed_point_64, liquidity_math, tick_math},
-    states::{PoolState, TickArrayBitmapExtension, TickArrayState, POOL_TICK_ARRAY_BITMAP_SEED},
+    states::{
+        pool, PoolState, TickArrayBitmapExtension, TickArrayState, POOL_TICK_ARRAY_BITMAP_SEED,
+    },
 };
 use spl_associated_token_account::get_associated_token_address;
 use spl_token_2022::{
-    extension::StateWithExtensionsMut,
-    state::Mint,
-    state::{Account, AccountState},
+    extension::{StateWithExtensions, StateWithExtensionsMut},
+    state::{Account, AccountState, Mint},
 };
 use spl_token_client::token::ExtensionInitializationParams;
 
@@ -240,10 +241,8 @@ fn load_cur_and_next_five_tick_array(
     let mut tick_arrays = VecDeque::new();
     for tick_array in tick_array_rsps {
         let tick_array_state =
-            deserialize_anchor_account::<solar_clmm::states::TickArrayState>(
-                &tick_array.unwrap(),
-            )
-            .unwrap();
+            deserialize_anchor_account::<solar_clmm::states::TickArrayState>(&tick_array.unwrap())
+                .unwrap();
         tick_arrays.push_back(tick_array_state);
     }
     tick_arrays
@@ -853,10 +852,18 @@ fn main() -> Result<()> {
             let rsps = rpc_client.get_multiple_accounts(&load_pubkeys)?;
             let mint0_owner = rsps[0].clone().unwrap().owner;
             let mint1_owner = rsps[1].clone().unwrap().owner;
-            let mint0_account =
-                spl_token::state::Mint::unpack(&rsps[0].as_ref().unwrap().data).unwrap();
-            let mint1_account =
-                spl_token::state::Mint::unpack(&rsps[1].as_ref().unwrap().data).unwrap();
+            let mint0_account = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(
+                &rsps[0].as_ref().unwrap().data,
+            )
+            .unwrap()
+            .base;
+            // spl_token::state::Mint::unpack(&rsps[0].as_ref().unwrap().data).unwrap();
+            let mint1_account = StateWithExtensions::<spl_token_2022::state::Mint>::unpack(
+                &rsps[1].as_ref().unwrap().data,
+            )
+            .unwrap()
+            .base;
+            // spl_token::state::Mint::unpack(&rsps[1].as_ref().unwrap().data).unwrap();
             let sqrt_price_x64 =
                 price_to_sqrt_price_x64(price, mint0_account.decimals, mint1_account.decimals);
             let (amm_config_key, __bump) = Pubkey::find_program_address(
@@ -870,6 +877,10 @@ fn main() -> Result<()> {
             println!(
                 "tick:{}, price:{}, sqrt_price_x64:{}, amm_config_key:{}",
                 tick, price, sqrt_price_x64, amm_config_key
+            );
+            println!(
+                "tickarraybitmap {}",
+                pool_config.tickarray_bitmap_extension.unwrap()
             );
 
             let create_pool_instr = create_pool_instr(
@@ -893,8 +904,11 @@ fn main() -> Result<()> {
                 &signers,
                 recent_hash,
             );
-            let signature = send_txn(&rpc_client, &txn, true)?;
-            println!("{}", signature);
+            let signature = send_txn(&rpc_client, &txn, true).map_err(|e| {
+                println!("Transaction error: {:?}", e);
+                e
+            });
+            println!("{}", signature.unwrap());
         }
         CommandsName::InitReward {
             open_time,
@@ -1171,6 +1185,10 @@ fn main() -> Result<()> {
                 let request_inits_instr =
                     ComputeBudgetInstruction::set_compute_unit_limit(1400_000u32);
                 instructions.push(request_inits_instr);
+                let load_pubkeys = vec![pool_config.mint0.unwrap(), pool_config.mint1.unwrap()];
+                let rsps = rpc_client.get_multiple_accounts(&load_pubkeys)?;
+                let mint0_owner = rsps[0].clone().unwrap().owner;
+                let mint1_owner = rsps[1].clone().unwrap().owner;
                 let open_position_instr = open_position_instr(
                     &pool_config.clone(),
                     pool_config.pool_id_account.unwrap(),
@@ -1180,13 +1198,15 @@ fn main() -> Result<()> {
                     pool.token_mint_1,
                     nft_mint.pubkey(),
                     payer.pubkey(),
-                    spl_associated_token_account::get_associated_token_address(
+                    spl_associated_token_account::get_associated_token_address_with_program_id(
                         &payer.pubkey(),
                         &pool_config.mint0.unwrap(),
+                        &mint0_owner,
                     ),
-                    spl_associated_token_account::get_associated_token_address(
+                    spl_associated_token_account::get_associated_token_address_with_program_id(
                         &payer.pubkey(),
                         &pool_config.mint1.unwrap(),
+                        &mint1_owner,
                     ),
                     remaining_accounts,
                     liquidity,
@@ -1938,11 +1958,10 @@ fn main() -> Result<()> {
             println!("pool_id:{}", pool_id);
             let pool: solar_clmm::states::PoolState = program.account(pool_id)?;
 
-            let tick_array_start_index =
-                solar_clmm::states::TickArrayState::get_array_start_index(
-                    tick,
-                    pool.tick_spacing.into(),
-                );
+            let tick_array_start_index = solar_clmm::states::TickArrayState::get_array_start_index(
+                tick,
+                pool.tick_spacing.into(),
+            );
             let program = anchor_client.program(pool_config.raydium_v3_program)?;
             let (tick_array_key, __bump) = Pubkey::find_program_address(
                 &[

@@ -18,11 +18,7 @@ use std::collections::HashSet;
 
 use super::get_recent_epoch;
 
-const MINT_WHITELIST: [&'static str; 4] = [
-    "HVbpJAQGNpkgBaYBZQBR1t7yFdvaYVp2vCQQfKKEN4tM",
-    "Crn4x1Y2HUKko7ox2EZMT6N2t2ZyH7eKtwkBGVnhEq1g",
-    "FrBfWJ4qE5sCzKm3k3JaAtqZcXUh4LvJygDeketsrsH4",
-    "2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo",
+const MINT_WHITELIST: [&'static str; 0] = [
 ];
 
 pub fn invoke_memo_instruction<'info>(

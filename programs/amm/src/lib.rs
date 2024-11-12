@@ -12,9 +12,9 @@ use util::access_control::*;
 
 
 #[cfg(feature = "devnet")]
-declare_id!("CLsiWisG9Ek7dFgD8ENYtxLBbMEVxB64M3wD4f2XuZSn");
+declare_id!("CLK8pJyTV17Mwq3MrgbbojEiVXcmrMYC3J59JC9xhgNQ");
 #[cfg(not(feature = "devnet"))]
-declare_id!("CLsiWisG9Ek7dFgD8ENYtxLBbMEVxB64M3wD4f2XuZSn");
+declare_id!("CLK8pJyTV17Mwq3MrgbbojEiVXcmrMYC3J59JC9xhgNQ");
 
 pub mod admin {
     use anchor_lang::prelude::declare_id;

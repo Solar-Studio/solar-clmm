@@ -921,7 +921,7 @@ pub fn update_position(
 }
 
 const METADATA_URI: &str =
-    "https://cloudflare-ipfs.com/ipfs/QmbzJafuKY3B4t25eq9zdKZMgXiMeW4jHLzf6KE6ZmHWn1/02.json";
+    "https://api.solarstudios.co/clmm/metadata";
 
 fn create_nft_with_metadata<'info>(
     payer: &Signer<'info>,
@@ -958,8 +958,8 @@ fn create_nft_with_metadata<'info>(
             pool_state_loader.key(),
             payer.key(),
             pool_state_loader.key(),
-            String::from("Raydium Concentrated Liquidity"),
-            String::from("RCL"),
+            String::from("Solar Concentrated Liquidity"),
+            String::from("SCL"),
             METADATA_URI.to_string(),
             Some(vec![Creator {
                 address: pool_state_loader.key(),
